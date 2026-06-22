@@ -382,6 +382,13 @@ pub struct CodexChatReasoningConfig {
     pub output_format: Option<String>,
 }
 
+/// 自定义 HTTP 请求头（仅在本地代理转发时注入）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomHeader {
+    pub name: String,
+    pub value: String,
+}
+
 /// 供应商元数据
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProviderMeta {
@@ -466,6 +473,9 @@ pub struct ProviderMeta {
     /// Custom User-Agent for local proxy routing.
     #[serde(rename = "customUserAgent", skip_serializing_if = "Option::is_none")]
     pub custom_user_agent: Option<String>,
+    /// 自定义请求头列表（仅在本地代理转发时注入）。
+    #[serde(rename = "customHeaders", skip_serializing_if = "Option::is_none")]
+    pub custom_headers: Option<Vec<CustomHeader>>,
     /// 累加模式应用中，该 provider 是否已写入 live config。
     /// `None` 表示旧数据/未知状态，`Some(false)` 表示明确仅存在于数据库中。
     #[serde(rename = "liveConfigManaged", skip_serializing_if = "Option::is_none")]
@@ -502,6 +512,27 @@ pub fn parse_custom_user_agent(
         Some(ua) => HeaderValue::from_str(ua).map(Some),
         None => Ok(None),
     }
+}
+
+/// 解析 Provider 级自定义 HTTP 请求头列表。
+///
+/// 遍历 raw slice 中的每个 `CustomHeader`，尝试将 `name` 和 `value` 分别解析为
+/// `http::HeaderName` 和 `http::HeaderValue`。只收集解析成功的条目，解析失败的
+/// 条目静默忽略（与 `parse_custom_user_agent` 相同的宽松策略）。
+///
+/// `None` 或空 slice 返回空 `Vec`。
+pub fn parse_custom_headers(raw: Option<&[CustomHeader]>) -> Vec<(http::HeaderName, http::HeaderValue)> {
+    raw.map(|slice| {
+        slice
+            .iter()
+            .filter_map(|h| {
+                let name = http::HeaderName::from_str(&h.name).ok()?;
+                let value = http::HeaderValue::from_str(&h.value).ok()?;
+                Some((name, value))
+            })
+            .collect()
+    })
+    .unwrap_or_default()
 }
 
 impl ProviderMeta {

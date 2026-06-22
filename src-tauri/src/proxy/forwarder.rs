@@ -28,6 +28,7 @@ use crate::{app_config::AppType, provider::Provider};
 use futures::StreamExt;
 use http::Extensions;
 use serde_json::Value;
+use std::collections::HashSet;
 use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::RwLock;
@@ -1549,6 +1550,16 @@ impl RequestForwarder {
                 .and_then(|meta| meta.custom_user_agent_header().ok().flatten())
         };
 
+        let custom_headers = if is_copilot {
+            Vec::new()
+        } else {
+            provider
+                .meta
+                .as_ref()
+                .map(|m| crate::provider::parse_custom_headers(m.custom_headers.as_deref()))
+                .unwrap_or_default()
+        };
+
         // --- Copilot 优化器：动态 header 注入 ---
         if let Some((ref classification, ref det_request_id, ref interaction_id)) =
             copilot_optimization
@@ -1646,6 +1657,7 @@ impl RequestForwarder {
         let mut saw_user_agent = false;
         let mut saw_anthropic_beta = false;
         let mut saw_anthropic_version = false;
+        let mut saw_custom_headers = std::collections::HashSet::new();
 
         for (key, value) in headers {
             let key_str = key.as_str();
@@ -1737,6 +1749,22 @@ impl RequestForwarder {
                 continue;
             }
 
+            // --- custom headers: provider-level override for local proxy routing ---
+            if !is_copilot {
+                if let Some(ch_idx) = custom_headers.iter().position(|(name, _)| {
+                    name.as_str().eq_ignore_ascii_case(key_str)
+                }) {
+                    if !saw_custom_headers.contains(key_str) {
+                        saw_custom_headers.insert(key_str.to_ascii_lowercase());
+                        ordered_headers.append(
+                            custom_headers[ch_idx].0.clone(),
+                            custom_headers[ch_idx].1.clone(),
+                        );
+                    }
+                    continue;
+                }
+            }
+
             // --- anthropic-beta — 用重建值替换（确保含 claude-code 标记） ---
             if key_str.eq_ignore_ascii_case("anthropic-beta") {
                 if !saw_anthropic_beta {
@@ -1789,6 +1817,14 @@ impl RequestForwarder {
         if !saw_user_agent {
             if let Some(ref ua) = custom_user_agent {
                 ordered_headers.append(http::header::USER_AGENT, ua.clone());
+            }
+        }
+
+        // Append custom headers that weren't in the original request
+        for (name, value) in &custom_headers {
+            let name_str = name.as_str().to_ascii_lowercase();
+            if !saw_custom_headers.contains(&name_str) {
+                ordered_headers.append(name.clone(), value.clone());
             }
         }
 

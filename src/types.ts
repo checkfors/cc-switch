@@ -219,6 +219,8 @@ export interface ProviderMeta {
   codexChatReasoning?: CodexChatReasoning;
   // Custom User-Agent for local proxy routing. Only applied by the local proxy.
   customUserAgent?: string;
+  // Custom HTTP headers for local proxy routing. Only applied by the local proxy.
+  customHeaders?: Array<{ name: string; value: string }>;
   // 供应商类型（用于识别 Copilot 等特殊供应商）
   providerType?: string;
   // GitHub Copilot 关联账号 ID（旧字段，保留兼容读取）
