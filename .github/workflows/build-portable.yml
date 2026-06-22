@@ -63,7 +63,7 @@ jobs:
 
       - name: Build Tauri App (Windows Debug)
         shell: pwsh
-        run: pnpm tauri build --debug
+        run: pnpm tauri build --debug --bundles none
 
       - name: Package Portable
         shell: pwsh
