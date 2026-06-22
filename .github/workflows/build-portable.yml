@@ -61,9 +61,12 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Build Tauri App (Windows Debug)
-        shell: pwsh
-        run: pnpm tauri build --debug --bundles none
+      - name: Build frontend
+        run: pnpm build:renderer
+
+      - name: Build Rust binary (debug)
+        shell: bash
+        run: cargo build --manifest-path src-tauri/Cargo.toml
 
       - name: Package Portable
         shell: pwsh
