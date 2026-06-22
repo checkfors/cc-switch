@@ -26,6 +26,7 @@ import {
   type FetchedModel,
 } from "@/lib/api/model-fetch";
 import { CustomUserAgentField } from "./CustomUserAgentField";
+import { CustomHeadersField } from "./CustomHeadersField";
 import { cn } from "@/lib/utils";
 import type {
   CodexApiFormat,
@@ -78,6 +79,10 @@ interface CodexFormFieldsProps {
   // Local proxy User-Agent override
   customUserAgent: string;
   onCustomUserAgentChange: (value: string) => void;
+
+  // Local proxy custom headers
+  customHeaders: Array<{ name: string; value: string }>;
+  onCustomHeadersChange: (headers: Array<{ name: string; value: string }>) => void;
 }
 
 type CodexCatalogRow = CodexCatalogModel & { rowId: string };
@@ -136,6 +141,8 @@ export function CodexFormFields({
   speedTestEndpoints,
   customUserAgent,
   onCustomUserAgentChange,
+  customHeaders,
+  onCustomHeadersChange,
 }: CodexFormFieldsProps) {
   const { t } = useTranslation();
 
@@ -150,7 +157,7 @@ export function CodexFormFields({
   const supportsEffort = codexChatReasoning.supportsEffort === true;
 
   // needsLocalRouting 非默认值说明预设/用户动过路由配置，需要让模型映射保持可见
-  const hasAnyAdvancedValue = !!customUserAgent || needsLocalRouting;
+  const hasAnyAdvancedValue = !!customUserAgent || needsLocalRouting || customHeaders.length > 0;
   const [advancedExpanded, setAdvancedExpanded] = useState(hasAnyAdvancedValue);
 
   // 预设/编辑加载填充高级值后自动展开（仅从折叠→展开，不会自动折叠）
@@ -489,6 +496,11 @@ export function CodexFormFields({
                 id="codex-custom-user-agent"
                 value={customUserAgent}
                 onChange={onCustomUserAgentChange}
+              />
+
+              <CustomHeadersField
+                headers={customHeaders}
+                onChange={onCustomHeadersChange}
               />
             </div>
 

@@ -48,6 +48,7 @@ import {
   type FetchedModel,
 } from "@/lib/api/model-fetch";
 import { CustomUserAgentField } from "./CustomUserAgentField";
+import { CustomHeadersField } from "./CustomHeadersField";
 import type {
   ProviderCategory,
   ClaudeApiFormat,
@@ -145,6 +146,10 @@ interface ClaudeFormFieldsProps {
   // Local proxy User-Agent override
   customUserAgent: string;
   onCustomUserAgentChange: (value: string) => void;
+
+  // Local proxy custom headers
+  customHeaders: Array<{ name: string; value: string }>;
+  onCustomHeadersChange: (headers: Array<{ name: string; value: string }>) => void;
 }
 
 export function ClaudeFormFields({
@@ -201,6 +206,8 @@ export function ClaudeFormFields({
   onFullUrlChange,
   customUserAgent,
   onCustomUserAgentChange,
+  customHeaders,
+  onCustomHeadersChange,
 }: ClaudeFormFieldsProps) {
   const { t } = useTranslation();
   const hasAnyAdvancedValue = !!(
@@ -212,7 +219,7 @@ export function ClaudeFormFields({
     apiFormat !== "anthropic" ||
     apiKeyField !== "ANTHROPIC_AUTH_TOKEN" ||
     customUserAgent
-  );
+  ) || customHeaders.length > 0;
   const [advancedExpanded, setAdvancedExpanded] = useState(hasAnyAdvancedValue);
 
   // 预设填充高级值后自动展开（仅从折叠→展开，不会自动折叠）
@@ -962,6 +969,11 @@ export function ClaudeFormFields({
               id="claude-custom-user-agent"
               value={customUserAgent}
               onChange={onCustomUserAgentChange}
+            />
+
+            <CustomHeadersField
+              headers={customHeaders}
+              onChange={onCustomHeadersChange}
             />
           </CollapsibleContent>
         </Collapsible>

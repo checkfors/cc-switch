@@ -356,6 +356,7 @@ function ProviderFormFull({
     });
     setCodexChatReasoning(initialData?.meta?.codexChatReasoning ?? {});
     setCustomUserAgent(initialData?.meta?.customUserAgent ?? "");
+    setCustomHeaders(initialData?.meta?.customHeaders ?? []);
   }, [appId, initialData, supportsFullUrl]);
 
   const defaultValues: ProviderFormData = useMemo(
@@ -515,6 +516,9 @@ function ProviderFormFull({
   const [customUserAgent, setCustomUserAgent] = useState<string>(
     () => initialData?.meta?.customUserAgent ?? "",
   );
+  const [customHeaders, setCustomHeaders] = useState<
+    Array<{ name: string; value: string }>
+  >(() => initialData?.meta?.customHeaders ?? []);
 
   const {
     codexAuth,
@@ -1396,6 +1400,12 @@ function ProviderFormFull({
         (appId === "claude" || appId === "codex") && category !== "official"
           ? customUserAgent.trim() || undefined
           : undefined,
+      customHeaders:
+        (appId === "claude" || appId === "codex") && category !== "official"
+          ? customHeaders.filter(h => h.name.trim() !== "" && h.value.trim() !== "").length > 0
+            ? customHeaders.filter(h => h.name.trim() !== "" && h.value.trim() !== "")
+            : undefined
+          : undefined,
       testConfig: testConfig.enabled ? testConfig : undefined,
       costMultiplier: pricingConfig.enabled
         ? pricingConfig.costMultiplier
@@ -2023,6 +2033,8 @@ function ProviderFormFull({
               onFullUrlChange={setLocalIsFullUrl}
               customUserAgent={customUserAgent}
               onCustomUserAgentChange={setCustomUserAgent}
+              customHeaders={customHeaders}
+              onCustomHeadersChange={setCustomHeaders}
             />
           )}
 
@@ -2057,6 +2069,8 @@ function ProviderFormFull({
               speedTestEndpoints={speedTestEndpoints}
               customUserAgent={customUserAgent}
               onCustomUserAgentChange={setCustomUserAgent}
+              customHeaders={customHeaders}
+              onCustomHeadersChange={setCustomHeaders}
             />
           )}
 
