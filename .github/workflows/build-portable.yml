@@ -1,0 +1,104 @@
+name: Build Windows Portable
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: '分支'
+        required: false
+        default: 'main-custom-header'
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  build-portable:
+    name: Build Windows Portable EXE
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.12.3
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-store
+        shell: bash
+        run: echo "path=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-store-
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Cargo registry and build
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Build Tauri App (Windows Debug)
+        shell: pwsh
+        run: pnpm tauri build --debug
+
+      - name: Package Portable
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path portable-package | Out-Null
+
+          # Find the built exe
+          $exeCandidates = @(
+            'src-tauri/target/debug/cc-switch.exe',
+            'src-tauri/target/x86_64-pc-windows-msvc/debug/cc-switch.exe'
+          )
+          $exe = $exeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exe) {
+            Write-Error "EXE not found! Checked: $($exeCandidates -join ', ')"
+            exit 1
+          }
+
+          Copy-Item $exe portable-package/
+          Write-Host "EXE copied: $exe"
+
+          # Create portable.ini marker
+          Set-Content -Path portable-package/portable.ini -Value 'portable=true' -Encoding UTF8
+          Write-Host "portable.ini created"
+
+          # Zip it
+          $shortHash = $env:GITHUB_SHA.Substring(0, 7)
+          $zipName = "CC-Switch-portable-$shortHash.zip"
+          Compress-Archive -Path portable-package/* -DestinationPath $zipName -Force
+          Write-Host "Portable zip: $zipName"
+          echo "PORTABLE_ZIP=$zipName" >> $env:GITHUB_ENV
+
+      - name: Upload portable zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: portable-${{ github.sha }}
+          path: ${{ env.PORTABLE_ZIP }}
+          if-no-files-found: error
