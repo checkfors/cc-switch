@@ -61,9 +61,9 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      - name: Build Tauri App (Windows Debug)
+      - name: Build Tauri App (Windows)
         shell: pwsh
-        run: pnpm tauri build --debug
+        run: pnpm tauri build --bundles msi
         continue-on-error: true
 
       - name: Package Portable
@@ -74,8 +74,8 @@ jobs:
 
           # Find the built exe
           $exeCandidates = @(
-            'src-tauri/target/debug/cc-switch.exe',
-            'src-tauri/target/x86_64-pc-windows-msvc/debug/cc-switch.exe'
+            'src-tauri/target/release/cc-switch.exe',
+            'src-tauri/target/x86_64-pc-windows-msvc/release/cc-switch.exe'
           )
           $exe = $exeCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
           if (-not $exe) {
